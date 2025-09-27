@@ -1,0 +1,137 @@
+{
+  "metadata": {
+    "generation_date": "2025-09-25",
+    "ontology_files": [
+      "schemas/ontologies/bridge/gist_dbc_bridge.owl",
+      "schemas/ontologies/sow/complete_sow_ontology.owl",
+      "schemas/ontologies/sow/sow_inference_rules.owl"
+    ],
+    "total_examples": 8,
+    "navigation_patterns_covered": [
+      "Forward Navigation",
+      "Backward Navigation",
+      "Cross-Reference Browsing",
+      "Bidirectional Navigation",
+      "Multi-hop Navigation",
+      "Inference-based Navigation",
+      "Cross-ontology Navigation",
+      "Quality Standards Navigation"
+    ]
+  },
+  "examples": {
+    "example_1": {
+      "example_name": "Forward Navigation: Challenge \u2192 Outcome",
+      "navigation_pattern": "hasBusinessChallenge + hasDesiredOutcome",
+      "lambda_use_case": "Given a business challenge, find related outcomes",
+      "sparql_query": "\n        PREFIX csow: <https://agentic-data-scraper.com/ontology/complete-sow#>\n        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\n        SELECT DISTINCT ?challenge ?challengeLabel ?outcome ?outcomeLabel ?sow WHERE {\n            # Forward navigation: SOW \u2192 Challenge, SOW \u2192 Outcome\n            ?sow a csow:SemanticStatementOfWork .\n            ?sow csow:hasBusinessChallenge ?challenge .\n            ?sow csow:hasDesiredOutcome ?outcome .\n\n            # Get labels for human readability\n            OPTIONAL { ?challenge rdfs:label ?challengeLabel }\n            OPTIONAL { ?outcome rdfs:label ?outcomeLabel }\n        }\n        ORDER BY ?challenge ?outcome\n        ",
+      "result_count": 0,
+      "lambda_implementation": {
+        "function_signature": "def get_outcomes_for_challenge(challenge_uri: str) -> List[str]",
+        "description": "Returns list of outcome URIs related to given challenge",
+        "navigation_hops": 2,
+        "complexity": "simple"
+      },
+      "sample_results": []
+    },
+    "example_2": {
+      "example_name": "Backward Navigation: Outcome \u2190 Challenge",
+      "navigation_pattern": "isDesiredOutcomeOf + isBusinessChallengeOf",
+      "lambda_use_case": "Given an outcome, find which challenges led to it",
+      "sparql_query": "\n        PREFIX csow: <https://agentic-data-scraper.com/ontology/complete-sow#>\n        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\n        SELECT DISTINCT ?outcome ?outcomeLabel ?challenge ?challengeLabel ?sow WHERE {\n            # Backward navigation using inverse properties\n            ?outcome csow:isDesiredOutcomeOf ?sow .\n            ?challenge csow:isBusinessChallengeOf ?sow .\n\n            # Get labels\n            OPTIONAL { ?outcome rdfs:label ?outcomeLabel }\n            OPTIONAL { ?challenge rdfs:label ?challengeLabel }\n        }\n        ORDER BY ?outcome ?challenge\n        ",
+      "result_count": 0,
+      "lambda_implementation": {
+        "function_signature": "def get_challenges_for_outcome(outcome_uri: str) -> List[str]",
+        "description": "Returns list of challenge URIs that led to given outcome",
+        "navigation_hops": 2,
+        "complexity": "simple"
+      },
+      "sample_results": []
+    },
+    "example_3": {
+      "example_name": "Cross-Reference Browsing: Canvas Discovery",
+      "navigation_pattern": "rdfs:seeAlso",
+      "lambda_use_case": "Discover all concepts related to a business canvas",
+      "sparql_query": "\n        PREFIX bridge: <https://agentic-data-scraper.com/ontology/gist-dbc-bridge#>\n        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\n        SELECT DISTINCT ?canvas ?relatedConcept ?conceptType WHERE {\n            ?canvas a bridge:DataBusinessCanvas .\n            ?canvas rdfs:seeAlso ?relatedConcept .\n\n            # Try to determine the type of related concept\n            OPTIONAL { ?relatedConcept a ?conceptType }\n        }\n        ORDER BY ?canvas ?relatedConcept\n        ",
+      "result_count": 0,
+      "lambda_implementation": {
+        "function_signature": "def discover_related_concepts(canvas_uri: str) -> Dict[str, List[str]]",
+        "description": "Returns dictionary of concept types and their URIs related to canvas",
+        "navigation_hops": 1,
+        "complexity": "simple"
+      },
+      "sample_results": []
+    },
+    "example_4": {
+      "example_name": "Bidirectional Navigation: Target \u2194 Canvas",
+      "navigation_pattern": "alignsWithTarget \u2194 isTargetAlignedWith",
+      "lambda_use_case": "Navigate between executive targets and business canvas in both directions",
+      "sparql_query": "\n        PREFIX bridge: <https://agentic-data-scraper.com/ontology/gist-dbc-bridge#>\n        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\n        SELECT DISTINCT ?target ?canvas ?owner ?direction ?targetLabel WHERE {\n            # Forward direction: Canvas \u2192 Target\n            {\n                ?canvas bridge:alignsWithTarget ?target .\n                BIND(\"canvas_to_target\" AS ?direction)\n            }\n            UNION\n            # Backward direction: Target \u2192 Canvas\n            {\n                ?target bridge:isTargetAlignedWith ?canvas .\n                BIND(\"target_to_canvas\" AS ?direction)\n            }\n\n            # Additional navigation: Target \u2192 Owner\n            OPTIONAL {\n                ?target bridge:ownedBy ?owner\n            }\n            OPTIONAL { ?target rdfs:label ?targetLabel }\n        }\n        ORDER BY ?target ?canvas\n        ",
+      "result_count": 1,
+      "lambda_implementation": {
+        "function_signature": "def navigate_target_canvas(uri: str, direction: str) -> List[str]",
+        "description": "Navigate bidirectionally between targets and canvas",
+        "navigation_hops": 1,
+        "complexity": "medium"
+      },
+      "sample_results": [
+        "(rdflib.term.URIRef('https://agentic-data-scraper.com/ontology/gist-dbc-bridge#CostReductionTarget'), rdflib.term.URIRef('https://agentic-data-scraper.com/ontology/gist-dbc-bridge#SupplyChainDataCanvas'), rdflib.term.URIRef('https://agentic-data-scraper.com/ontology/gist-dbc-bridge#SupplyChainDirector'), rdflib.term.Literal('canvas_to_target'), rdflib.term.Literal('15% Supply Chain Cost Reduction'))"
+      ]
+    },
+    "example_5": {
+      "example_name": "Multi-hop Navigation: Complete Value Chain",
+      "navigation_pattern": "Challenge\u2192Outcome\u2192Canvas\u2192Contract\u2192Task",
+      "lambda_use_case": "Trace complete value chain from business need to execution",
+      "sparql_query": "\n        PREFIX csow: <https://agentic-data-scraper.com/ontology/complete-sow#>\n        PREFIX bridge: <https://agentic-data-scraper.com/ontology/gist-dbc-bridge#>\n        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\n        SELECT DISTINCT ?challenge ?outcome ?canvas ?contract ?task ?navigationPath WHERE {\n            # Hop 1: Challenge \u2192 SOW\n            ?sow csow:hasBusinessChallenge ?challenge .\n\n            # Hop 2: SOW \u2192 Outcome\n            ?sow csow:hasDesiredOutcome ?outcome .\n\n            # Hop 3: SOW \u2192 Canvas (via implementsCanvas or cross-reference)\n            {\n                ?sow csow:implementsCanvas ?canvas .\n                BIND(\"direct_implementation\" AS ?implementationPath)\n            }\n            UNION\n            {\n                ?outcome rdfs:seeAlso ?canvas .\n                ?canvas a bridge:DataBusinessCanvas .\n                BIND(\"via_outcome_reference\" AS ?implementationPath)\n            }\n\n            # Hop 4: Canvas \u2192 Contract (via implementedBySOW)\n            OPTIONAL {\n                ?canvas bridge:implementedBySOW ?sowContract .\n                ?sowContract bridge:realizesContract ?contract .\n            }\n\n            # Hop 5: Contract \u2192 Task\n            OPTIONAL {\n                ?contract bridge:executedByTask ?task .\n            }\n\n            BIND(CONCAT(\"Challenge\u2192Outcome\u2192Canvas\u2192Contract\u2192Task (\", ?implementationPath, \")\") AS ?navigationPath)\n        }\n        ORDER BY ?challenge ?outcome\n        LIMIT 10\n        ",
+      "result_count": 0,
+      "lambda_implementation": {
+        "function_signature": "def trace_value_chain(challenge_uri: str) -> Dict[str, Any]",
+        "description": "Traces complete path from business challenge to task execution",
+        "navigation_hops": 5,
+        "complexity": "high"
+      },
+      "sample_results": []
+    },
+    "example_6": {
+      "example_name": "Inference-based Navigation: Requirements \u2192 Opportunities",
+      "navigation_pattern": "infersOpportunity + inference metadata",
+      "lambda_use_case": "Find AI-inferred opportunities from business requirements",
+      "sparql_query": "\n        PREFIX sow: <https://agentic-data-scraper.com/ontology/sow#>\n        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\n        SELECT DISTINCT ?requirement ?opportunity ?opportunityType ?confidence ?reasoning ?keyword WHERE {\n            ?requirement a sow:BusinessRequirement .\n            ?requirement sow:infersOpportunity ?opportunity .\n\n            # Get the type of inferred opportunity\n            ?opportunity a ?opportunityType .\n            FILTER(?opportunityType IN (\n                sow:SpatialAnalysisOpportunity,\n                sow:TemporalAnalysisOpportunity,\n                sow:NetworkAnalysisOpportunity,\n                sow:CrossDomainOpportunity\n            ))\n\n            # Get inference metadata\n            OPTIONAL { ?opportunity sow:confidenceLevel ?confidence }\n            OPTIONAL { ?opportunity sow:reasoningTrace ?reasoning }\n            OPTIONAL { ?requirement sow:containsKeyword ?keyword }\n        }\n        ORDER BY DESC(?confidence) ?opportunityType\n        ",
+      "result_count": 0,
+      "lambda_implementation": {
+        "function_signature": "def get_inferred_opportunities(requirement_uri: str) -> List[Dict[str, Any]]",
+        "description": "Returns inferred opportunities with confidence scores and reasoning",
+        "navigation_hops": 1,
+        "complexity": "medium"
+      },
+      "sample_results": []
+    },
+    "example_7": {
+      "example_name": "Cross-ontology Navigation: Bridge \u2194 SOW \u2194 Inference",
+      "navigation_pattern": "rdfs:seeAlso across ontology boundaries",
+      "lambda_use_case": "Navigate seamlessly across all ontology layers",
+      "sparql_query": "\n        PREFIX bridge: <https://agentic-data-scraper.com/ontology/gist-dbc-bridge#>\n        PREFIX csow: <https://agentic-data-scraper.com/ontology/complete-sow#>\n        PREFIX sow: <https://agentic-data-scraper.com/ontology/sow#>\n        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\n        SELECT DISTINCT ?bridgeConcept ?sowConcept ?inferenceConcept ?ontologyPath WHERE {\n            # Bridge \u2192 Complete SOW navigation\n            {\n                ?bridgeConcept rdfs:seeAlso ?sowConcept .\n                ?bridgeConcept a ?bridgeType .\n                ?sowConcept a ?sowType .\n                FILTER(STRSTARTS(STR(?bridgeType), \"https://agentic-data-scraper.com/ontology/gist-dbc-bridge#\"))\n                FILTER(STRSTARTS(STR(?sowType), \"https://agentic-data-scraper.com/ontology/complete-sow#\"))\n                BIND(\"Bridge\u2192SOW\" AS ?ontologyPath)\n            }\n            UNION\n            # Complete SOW \u2192 Inference navigation\n            {\n                ?sowConcept rdfs:seeAlso ?inferenceConcept .\n                ?sowConcept a ?sowType .\n                ?inferenceConcept a ?inferenceType .\n                FILTER(STRSTARTS(STR(?sowType), \"https://agentic-data-scraper.com/ontology/complete-sow#\"))\n                FILTER(STRSTARTS(STR(?inferenceType), \"https://agentic-data-scraper.com/ontology/sow#\"))\n                BIND(\"SOW\u2192Inference\" AS ?ontologyPath)\n            }\n        }\n        ORDER BY ?ontologyPath ?bridgeConcept\n        LIMIT 15\n        ",
+      "result_count": 0,
+      "lambda_implementation": {
+        "function_signature": "def navigate_across_ontologies(concept_uri: str) -> Dict[str, List[str]]",
+        "description": "Returns related concepts from all ontology layers",
+        "navigation_hops": 1,
+        "complexity": "medium"
+      },
+      "sample_results": []
+    },
+    "example_8": {
+      "example_name": "Quality Navigation: Contracts \u2194 Standards \u2194 Tasks",
+      "navigation_pattern": "hasQualityStandard \u2194 isQualityStandardFor + rdfs:seeAlso",
+      "lambda_use_case": "Navigate quality requirements and execution relationships",
+      "sparql_query": "\n        PREFIX bridge: <https://agentic-data-scraper.com/ontology/gist-dbc-bridge#>\n        PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n\n        SELECT DISTINCT ?contract ?qualityStandard ?task ?qualityValue ?navigationPath WHERE {\n            # Forward: Contract \u2192 Quality Standard\n            {\n                ?contract bridge:hasQualityStandard ?qualityStandard .\n                OPTIONAL { ?contract bridge:executedByTask ?task }\n                BIND(\"Contract\u2192Quality\" AS ?navigationPath)\n            }\n            UNION\n            # Backward: Quality Standard \u2192 Contract\n            {\n                ?qualityStandard bridge:isQualityStandardFor ?contract .\n                OPTIONAL { ?contract bridge:executedByTask ?task }\n                BIND(\"Quality\u2192Contract\" AS ?navigationPath)\n            }\n            UNION\n            # Multi-hop: Contract \u2192 Task \u2192 Quality (via seeAlso)\n            {\n                ?contract bridge:executedByTask ?task .\n                ?task rdfs:seeAlso ?qualityStandard .\n                ?qualityStandard a bridge:DataQualityStandard .\n                BIND(\"Contract\u2192Task\u2192Quality\" AS ?navigationPath)\n            }\n\n            # Get quality threshold if available\n            OPTIONAL { ?qualityStandard bridge:hasQualityThreshold ?qualityValue }\n        }\n        ORDER BY ?contract ?navigationPath\n        ",
+      "result_count": 0,
+      "lambda_implementation": {
+        "function_signature": "def navigate_quality_relationships(concept_uri: str) -> Dict[str, Any]",
+        "description": "Returns quality-related concepts and their relationships",
+        "navigation_hops": 2,
+        "complexity": "medium"
+      },
+      "sample_results": []
+    }
+  }
+}
