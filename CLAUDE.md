@@ -1,7 +1,7 @@
 # Claude Code Configuration - Graph Middleware
 
 ## Project: Agentic Graph Middleware
-KuzuDB-powered graph database middleware serving as the bridge between raw data and semantic ontologies.
+Unified semantic graph infrastructure combining KuzuDB and Jena Fuseki for comprehensive ontology operations and SPARQL services.
 
 ### Scope
 This repository provides the graph database layer for:
@@ -20,10 +20,20 @@ Raw Data → Graph Middleware → Semantic Ontologies
 - **Output**: Semantically enriched, queryable graph structures
 
 ### Key Files
+**KuzuDB Layer:**
 - `src/agentic_graph_middleware/core/ontology_materializer.py` - Core KuzuDB ontology materialization
 - `src/agentic_graph_middleware/schemas/ontology_schema.py` - Pure ontology schema definitions
 - `src/agentic_graph_middleware/materialization/rdf_loader.py` - RDF/OWL file loading and processing
 - `src/agentic_graph_middleware/visualization/ontology_explorer.py` - Development debugging and exploration tools
+
+**Jena Fuseki Layer:**
+- `docker-compose.yml` - Fuseki triplestore container setup
+- `fuseki/config/` - Fuseki configuration files
+- `fuseki/scripts/` - Infrastructure startup and validation scripts
+- `fuseki/queries/` - SPARQL query templates and tests
+
+**Unified Infrastructure:**
+- `src/agentic_graph_middleware/infrastructure/semantic_infrastructure.py` - Coordinates both KuzuDB and Fuseki
 
 ### Development Standards
 - **Performance First**: KuzuDB chosen for high-performance graph operations
@@ -38,25 +48,47 @@ Raw Data → Graph Middleware → Semantic Ontologies
 
 ### Key Commands
 ```bash
-# Initialize KuzuDB ontology database
-python -c "from agentic_graph_middleware.core.ontology_materializer import OntologyMaterializer; m = OntologyMaterializer('./ontology.kuzu')"
+# Start unified semantic infrastructure (KuzuDB + Fuseki)
+docker-compose up -d
+bash fuseki/scripts/start_semantic_infrastructure.sh
 
-# Load RDF/OWL ontologies
-python -c "from agentic_graph_middleware.materialization.rdf_loader import RDFLoader; loader.load_ontology_file('path/to/ontology.owl')"
+# Initialize KuzuDB ontology database
+python -c "from agentic_graph_middleware.infrastructure.semantic_infrastructure import SemanticInfrastructure; infra = SemanticInfrastructure(); infra.initialize_kuzu()"
+
+# Load ontologies into both engines
+python -c "infra.load_ontology_both_engines('path/to/ontology.owl')"
+
+# Query KuzuDB with Cypher
+python -c "infra.query_kuzu('MATCH (c:OntologyConcept) RETURN c.label LIMIT 10')"
+
+# Query Fuseki with SPARQL
+python -c "infra.query_fuseki('SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10')"
+
+# Get infrastructure status
+python -c "status = infra.get_infrastructure_status(); print(status)"
 
 # Export visualization data
 python -c "from agentic_graph_middleware.visualization.ontology_explorer import OntologyExplorer; explorer.export_for_web_visualization('viz_data.json')"
-
-# Query ontology graph
-python -c "materializer.query_ontology('MATCH (c:OntologyConcept) RETURN c.label LIMIT 10')"
 ```
 
-### KuzuDB Use Cases
-1. **Ontology Materialization**: Convert RDF/OWL to queryable graph structures
-2. **Data Standardization**: Apply semantic transformations to raw data streams
-3. **Development Debugging**: Visual exploration of semantic relationships
-4. **Performance Optimization**: High-speed graph queries vs. SPARQL for large datasets
-5. **Marimo Integration**: Future graph-based notebook and UI components
+### Dual Engine Architecture
+**KuzuDB Strengths:**
+1. **High-Performance Graph Operations**: Fast traversals and analytics
+2. **Development Debugging**: Interactive graph exploration
+3. **Complex Graph Algorithms**: Advanced pattern matching
+4. **Marimo Integration**: Future graph-based notebook components
+
+**Jena Fuseki Strengths:**
+1. **Standard SPARQL Endpoint**: W3C compliant semantic queries
+2. **RDF Triple Store**: Native semantic web standards support
+3. **Federated Queries**: Cross-dataset semantic integration
+4. **Production SPARQL**: Enterprise-grade triplestore capabilities
+
+**Combined Benefits:**
+- Load once, query both ways (Cypher + SPARQL)
+- Performance optimization based on query type
+- Standards compliance with high-speed operations
+- Comprehensive semantic infrastructure
 
 ### Technical Architecture
 - **KuzuDB Core**: High-performance graph database engine

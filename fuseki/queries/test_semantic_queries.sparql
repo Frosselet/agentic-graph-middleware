@@ -1,0 +1,183 @@
+# ======================================================================
+# SEMANTIC CONNECTIVITY VALIDATION QUERIES
+# ======================================================================
+# Purpose: Test SPARQL queries across the 4-level connected ontology
+# Gist → DBC → SOW → Data Contract
+
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX gist: <https://w3id.org/semanticarts/ontology/gistCore#>
+PREFIX bridge: <https://agentic-data-scraper.com/ontology/gist-dbc-bridge#>
+PREFIX sow: <https://agentic-data-scraper.com/ontology/sow#>
+PREFIX csow: <https://agentic-data-scraper.com/ontology/complete-sow#>
+
+# ======================================================================
+# BASIC CONNECTIVITY TESTS
+# ======================================================================
+
+# Query 1: Count all classes across all ontology levels
+# Expected: Should show classes from Gist, Bridge, SOW, and Complete SOW
+SELECT ?class (COUNT(?instance) as ?instanceCount) WHERE {
+  ?instance a ?class .
+  FILTER(
+    STRSTARTS(STR(?class), "https://w3id.org/semanticarts/ontology/gistCore#") ||
+    STRSTARTS(STR(?class), "https://agentic-data-scraper.com/ontology/gist-dbc-bridge#") ||
+    STRSTARTS(STR(?class), "https://agentic-data-scraper.com/ontology/sow#") ||
+    STRSTARTS(STR(?class), "https://agentic-data-scraper.com/ontology/complete-sow#")
+  )
+}
+GROUP BY ?class
+ORDER BY ?class
+
+---
+
+# Query 2: Validate 4-level value chain connectivity
+# Expected: Should trace from Gist Organization to Data Processing Task
+SELECT ?org ?canvas ?sow ?contract ?task WHERE {
+  ?org a gist:Organization .
+  ?org bridge:hasBusinessModel ?canvas .
+  ?canvas a bridge:DataBusinessCanvas .
+  ?canvas bridge:implementedBySOW ?sow .
+  ?sow a csow:SemanticStatementOfWork .
+  ?sow bridge:realizesContract ?contract .
+  ?contract a bridge:DataContract .
+  ?contract bridge:executedByTask ?task .
+  ?task a bridge:DataProcessingTask .
+}
+
+---
+
+# Query 3: Test cross-level value creation chain
+# Expected: Should show how tasks create business value linked to executive targets
+SELECT ?task ?value ?target ?owner WHERE {
+  ?task a bridge:DataProcessingTask .
+  ?task bridge:createsBusinessValue ?value .
+  ?value a bridge:ValueProposition .
+
+  OPTIONAL {
+    ?canvas bridge:alignsWithTarget ?target .
+    ?target a bridge:ExecutiveTarget .
+    ?target bridge:ownedBy ?owner .
+    ?owner a gist:Person .
+  }
+}
+
+---
+
+# Query 4: Validate ontology imports and subclass relationships
+# Expected: Should show proper inheritance hierarchy
+SELECT ?subclass ?superclass WHERE {
+  ?subclass rdfs:subClassOf ?superclass .
+  FILTER(
+    STRSTARTS(STR(?subclass), "https://agentic-data-scraper.com/ontology/") &&
+    STRSTARTS(STR(?superclass), "https://w3id.org/semanticarts/ontology/gistCore#")
+  )
+}
+ORDER BY ?subclass
+
+---
+
+# Query 5: Test SKOS semantic mapping integration
+# Expected: Should show data assets mapped to SKOS concepts
+SELECT ?asset ?concept ?preferredLabel WHERE {
+  ?asset a bridge:DataAsset .
+  ?asset bridge:hasSemanticMapping ?concept .
+  ?concept a gist:Category .
+
+  OPTIONAL {
+    ?concept bridge:hasPreferredLabel ?preferredLabel .
+  }
+}
+
+---
+
+# Query 6: Validate SOW inference capabilities
+# Expected: Should show business challenges leading to inferred opportunities
+SELECT ?challenge ?opportunity ?reasoning WHERE {
+  ?challenge a csow:BusinessChallenge .
+  ?opportunity csow:inferredFrom ?challenge .
+  ?opportunity a csow:AnalyticalOpportunity .
+
+  OPTIONAL {
+    ?opportunity csow:reasoningTrace ?reasoning .
+  }
+}
+
+---
+
+# Query 7: Test executive target alignment
+# Expected: Should show business canvases aligned with executive targets
+SELECT ?canvas ?target ?owner ?alignment WHERE {
+  ?canvas a bridge:DataBusinessCanvas .
+  ?canvas bridge:alignsWithTarget ?target .
+  ?target a bridge:ExecutiveTarget .
+  ?target bridge:ownedBy ?owner .
+
+  OPTIONAL {
+    ?canvas bridge:hasAlignmentScore ?alignment .
+  }
+}
+
+---
+
+# Query 8: Validate complete ontology structure
+# Expected: Should show all object properties connecting our classes
+SELECT DISTINCT ?property ?domain ?range WHERE {
+  ?property a owl:ObjectProperty .
+  ?property rdfs:domain ?domain .
+  ?property rdfs:range ?range .
+  FILTER(
+    STRSTARTS(STR(?property), "https://agentic-data-scraper.com/ontology/")
+  )
+}
+ORDER BY ?property
+
+---
+
+# Query 9: Test data contract execution chain
+# Expected: Should show contracts executed by tasks creating business value
+SELECT ?contract ?task ?value ?canvas WHERE {
+  ?contract a bridge:DataContract .
+  ?contract bridge:executedByTask ?task .
+  ?task bridge:createsBusinessValue ?value .
+
+  OPTIONAL {
+    ?sow bridge:realizesContract ?contract .
+    ?canvas bridge:implementedBySOW ?sow .
+  }
+}
+
+---
+
+# Query 10: Comprehensive connectivity validation
+# Expected: Should show complete graph from Gist to Data Contract
+SELECT ?gistEntity ?gistType ?bridgeEntity ?bridgeType ?sowEntity ?sowType ?contractEntity WHERE {
+  # Gist level
+  ?gistEntity a ?gistType .
+  FILTER(STRSTARTS(STR(?gistType), "https://w3id.org/semanticarts/ontology/gistCore#"))
+
+  # Bridge level
+  ?bridgeEntity a ?bridgeType .
+  FILTER(STRSTARTS(STR(?bridgeType), "https://agentic-data-scraper.com/ontology/gist-dbc-bridge#"))
+
+  # SOW level
+  ?sowEntity a ?sowType .
+  FILTER(
+    STRSTARTS(STR(?sowType), "https://agentic-data-scraper.com/ontology/sow#") ||
+    STRSTARTS(STR(?sowType), "https://agentic-data-scraper.com/ontology/complete-sow#")
+  )
+
+  # Contract level
+  ?contractEntity a bridge:DataContract .
+
+  # Some connection between levels (flexible)
+  {
+    ?gistEntity ?p1 ?bridgeEntity .
+  } UNION {
+    ?bridgeEntity ?p2 ?sowEntity .
+  } UNION {
+    ?sowEntity ?p3 ?contractEntity .
+  }
+}
+LIMIT 50

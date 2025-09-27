@@ -1,0 +1,24 @@
+services:
+  fuseki:
+    image: stain/jena-fuseki:latest
+    container_name: agentic-fuseki
+    ports:
+      - "3030:3030"
+    environment:
+      - JVM_ARGS=-Xmx2g
+    volumes:
+      - fuseki-data:/fuseki
+      - ./fuseki/config:/fuseki-config:ro
+      - ../../ontologies:/ontologies:ro
+    networks:
+      - semantic-net
+    restart: unless-stopped
+
+
+networks:
+  semantic-net:
+    driver: bridge
+
+volumes:
+  fuseki-data:
+    driver: local
