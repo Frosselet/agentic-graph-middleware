@@ -1,0 +1,1 @@
+# Core KuzuDB integration and semantic collectors

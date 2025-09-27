@@ -1,0 +1,1 @@
+# KuzuDB schema definitions and navigation models
