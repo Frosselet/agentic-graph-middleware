@@ -20,11 +20,10 @@ Raw Data → Graph Middleware → Semantic Ontologies
 - **Output**: Semantically enriched, queryable graph structures
 
 ### Key Files
-- `src/agentic_graph_middleware/core/semantic_collectors.py` - Core KuzuDB integration
-- `src/agentic_graph_middleware/schemas/kuzu_sow_schema.py` - SOW data models for KuzuDB
-- `src/agentic_graph_middleware/schemas/kuzu_navigation_schema.py` - Navigation and query schemas
-- `src/agentic_graph_middleware/visualization/` - Development debugging and exploration tools
-- `src/agentic_graph_middleware/materialization/` - Ontology materialization engine
+- `src/agentic_graph_middleware/core/ontology_materializer.py` - Core KuzuDB ontology materialization
+- `src/agentic_graph_middleware/schemas/ontology_schema.py` - Pure ontology schema definitions
+- `src/agentic_graph_middleware/materialization/rdf_loader.py` - RDF/OWL file loading and processing
+- `src/agentic_graph_middleware/visualization/ontology_explorer.py` - Development debugging and exploration tools
 
 ### Development Standards
 - **Performance First**: KuzuDB chosen for high-performance graph operations
@@ -39,17 +38,17 @@ Raw Data → Graph Middleware → Semantic Ontologies
 
 ### Key Commands
 ```bash
-# Initialize KuzuDB instance
-python -m agentic_graph_middleware.core.init_database
+# Initialize KuzuDB ontology database
+python -c "from agentic_graph_middleware.core.ontology_materializer import OntologyMaterializer; m = OntologyMaterializer('./ontology.kuzu')"
 
-# Materialize ontologies
-python -m agentic_graph_middleware.materialization.ontology_materializer
+# Load RDF/OWL ontologies
+python -c "from agentic_graph_middleware.materialization.rdf_loader import RDFLoader; loader.load_ontology_file('path/to/ontology.owl')"
 
-# Launch visualization server
-python -m agentic_graph_middleware.visualization.debug_server
+# Export visualization data
+python -c "from agentic_graph_middleware.visualization.ontology_explorer import OntologyExplorer; explorer.export_for_web_visualization('viz_data.json')"
 
-# Test semantic mapping
-python -m agentic_graph_middleware.core.test_mapping
+# Query ontology graph
+python -c "materializer.query_ontology('MATCH (c:OntologyConcept) RETURN c.label LIMIT 10')"
 ```
 
 ### KuzuDB Use Cases
