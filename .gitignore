@@ -1,0 +1,51 @@
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# KuzuDB database files
+*.kuzu/
+*.kuzu
+
+# Development/test databases
+*_session_*.kuzu/
+debug_*.kuzu
+test_*.kuzu
+*_fresh_*.kuzu/
+*_pattern_*.kuzu/
+clean_session_*.kuzu
+final_session_*.kuzu
+session_*.kuzu
+simple_iteration_*.kuzu/
+tutorial_pattern_*.kuzu/
+semantic_ontology.kuzu
+ontology.kuzu.backup
+
+# Jupyter/Marimo notebooks - development only
+notebooks/
+*.ipynb_checkpoints/
+
+# Development files
+MARIMO_DEVELOPMENT_GUIDE.md
+MARIMO_TESTING_PROTOCOL.md
+
+# Docker/API development files
+kuzu-api/
+kuzu.Dockerfile
+requirements-kuzu-api.txt
+load_ontologies.py
+test_kuzu_subprocess.py
+pyproject.toml
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
