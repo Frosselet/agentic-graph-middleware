@@ -9,10 +9,26 @@ services:
     volumes:
       - fuseki-data:/fuseki
       - ./fuseki/config:/fuseki-config:ro
-      - ../../ontologies:/ontologies:ro
+      - ../ontologies/ontologies:/ontologies:ro
     networks:
       - semantic-net
     restart: unless-stopped
+
+  kuzu-api:
+    build:
+      context: .
+      dockerfile: kuzu.Dockerfile
+    container_name: agentic-kuzu
+    ports:
+      - "8080:8080"
+    volumes:
+      - kuzu-data:/data
+      - ../ontologies/ontologies:/ontologies:ro
+    networks:
+      - semantic-net
+    restart: unless-stopped
+    environment:
+      - KUZU_DB_PATH=/data/ontology.kuzu
 
 
 networks:
@@ -21,4 +37,6 @@ networks:
 
 volumes:
   fuseki-data:
+    driver: local
+  kuzu-data:
     driver: local
