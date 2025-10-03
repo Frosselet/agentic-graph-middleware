@@ -4,10 +4,10 @@ services:
     container_name: agentic-fuseki
     ports:
       - "3030:3030"
+    command: ["--config=/fuseki-config/assembler.ttl"]
     environment:
       - JVM_ARGS=-Xmx4g -Dlog4j2.formatMsgNoLookups=true
       - ADMIN_PASSWORD=admin
-      - FUSEKI_DATASET_1=ontologies
     volumes:
       - fuseki-data:/fuseki
       - ./fuseki/config:/fuseki-config:ro

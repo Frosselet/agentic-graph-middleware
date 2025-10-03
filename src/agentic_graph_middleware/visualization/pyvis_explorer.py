@@ -72,18 +72,36 @@ class PyvisOntologyExplorer:
 
     def _get_namespace(self, uri: str) -> str:
         """Extract namespace from URI"""
-        if 'semanticarts.com/gist' in uri:
-            return 'gist'
-        elif 'agentic.local/ontologies/bridge' in uri:
-            return 'bridge'
-        elif 'agentic.local/ontologies/sow' in uri or '/sow/' in uri:
-            return 'sow'
-        elif '/dbc/' in uri or 'business-canvas' in uri:
+        uri_lower = uri.lower()
+
+        # Get local name to check for DBC-specific concepts
+        local_name = self._get_local_name(uri).lower()
+
+        # DBC concepts (even if in bridge file) - check local name for DBC-specific terms
+        dbc_terms = ['databusinesscanvas', 'valueproposition', 'customersegment', 'dataasset',
+                     'intelligencecapability', 'revenuestream', 'coststructure', 'keyadaptation',
+                     'dataqualitystandard', 'dataprocessingtask', 'dataprovider', 'dataconsumer']
+        if any(term in local_name for term in dbc_terms):
             return 'dbc'
-        elif 'w3.org/2002/07/owl' in uri:
+
+        # SOW ontology
+        if '/sow' in uri_lower or 'complete-sow' in uri_lower:
+            return 'sow'
+
+        # Bridge ontology (concepts that bridge but aren't DBC-specific)
+        if 'gist-dbc-bridge' in uri_lower or '/bridge' in uri_lower:
+            return 'bridge'
+
+        # GIST ontology
+        if '/gist' in uri_lower or 'semanticarts' in uri_lower:
+            return 'gist'
+
+        # OWL/RDFS namespaces
+        if 'w3.org/2002/07/owl' in uri:
             return 'owl'
-        elif 'w3.org/1999/02/22-rdf-syntax' in uri or 'w3.org/2000/01/rdf-schema' in uri:
+        if 'w3.org/1999/02/22-rdf-syntax' in uri or 'w3.org/2000/01/rdf-schema' in uri:
             return 'rdf'
+
         return 'unknown'
 
     def _get_local_name(self, uri: str) -> str:
@@ -197,8 +215,10 @@ class PyvisOntologyExplorer:
         classes = self._query_sparql(classes_query)
         logger.info(f"  Found {len(classes)} classes")
 
-        # Add class nodes
+        # Store nodes to add (will add after we know which have edges)
+        nodes_to_add = {}
         node_stats = defaultdict(int)
+
         for cls in classes:
             uri = cls['class']['value']
             label = cls.get('label', {}).get('value', self._get_local_name(uri))
@@ -206,7 +226,6 @@ class PyvisOntologyExplorer:
 
             namespace = self._get_namespace(uri)
             color = self.ONTOLOGY_COLORS.get(namespace, self.ONTOLOGY_COLORS['unknown'])
-            node_stats[namespace] += 1
 
             # Create rich tooltip
             tooltip = f"""<div style='max-width:400px'>
@@ -217,17 +236,14 @@ class PyvisOntologyExplorer:
             {f"<br><b>Description:</b><br>{comment[:300]}..." if comment else ''}
             </div>"""
 
-            net.add_node(
-                uri,
-                label=label,
-                title=tooltip,
-                color=color,
-                size=30,
-                shape='dot',
-                borderWidth=2,
-                borderWidthSelected=4,
-                font={'size': 16}
-            )
+            nodes_to_add[uri] = {
+                'label': label,
+                'title': tooltip,
+                'color': color,
+                'size': 30,
+                'shape': 'dot',
+                'namespace': namespace
+            }
 
         # Fetch properties
         logger.info("📊 Fetching ontology properties...")
@@ -251,7 +267,7 @@ class PyvisOntologyExplorer:
         properties = self._query_sparql(properties_query)
         logger.info(f"  Found {len(properties)} properties")
 
-        # Add property nodes
+        # Store property nodes to add
         for prop in properties:
             uri = prop['prop']['value']
             label = prop.get('label', {}).get('value', self._get_local_name(uri))
@@ -268,16 +284,14 @@ class PyvisOntologyExplorer:
             {f"<br><b>Description:</b><br>{comment[:300]}..." if comment else ''}
             </div>"""
 
-            net.add_node(
-                uri,
-                label=label,
-                title=tooltip,
-                color=color,
-                size=20,
-                shape='diamond',
-                borderWidth=2,
-                font={'size': 14}
-            )
+            nodes_to_add[uri] = {
+                'label': label,
+                'title': tooltip,
+                'color': color,
+                'size': 20,
+                'shape': 'diamond',
+                'namespace': namespace
+            }
 
         # Fetch relationships
         logger.info("🔗 Fetching class relationships...")
@@ -305,17 +319,20 @@ class PyvisOntologyExplorer:
         relationships = self._query_sparql(relationships_query)
         logger.info(f"  Found {len(relationships)} class relationships")
 
+        # Track which nodes are connected
+        connected_nodes = set()
+        edges_to_add = []
+
         # Add class relationship edges
         edge_stats = defaultdict(int)
-        existing_nodes = {n['id'] for n in net.nodes}
 
         for rel in relationships:
             subject = rel['subject']['value']
             predicate = rel['predicate']['value']
             obj = rel['object']['value']
 
-            # Only add edge if both nodes exist
-            if subject in existing_nodes and obj in existing_nodes:
+            # Only add edge if both nodes are available
+            if subject in nodes_to_add and obj in nodes_to_add:
                 pred_name = self._get_local_name(predicate)
                 edge_color = self.RELATIONSHIP_COLORS.get(
                     pred_name,
@@ -326,15 +343,17 @@ class PyvisOntologyExplorer:
                 edge_label = pred_name
                 edge_title = f"{pred_name}: {self._get_local_name(subject)} → {self._get_local_name(obj)}"
 
-                net.add_edge(
-                    subject,
-                    obj,
-                    label=edge_label,
-                    title=edge_title,
-                    color=edge_color,
-                    width=2,
-                    arrows={'to': {'enabled': True, 'scaleFactor': 0.5}}
-                )
+                edges_to_add.append({
+                    'from': subject,
+                    'to': obj,
+                    'label': edge_label,
+                    'title': edge_title,
+                    'color': edge_color,
+                    'width': 2
+                })
+
+                connected_nodes.add(subject)
+                connected_nodes.add(obj)
 
         # Fetch property relationships
         logger.info("🔗 Fetching property relationships...")
@@ -358,29 +377,62 @@ class PyvisOntologyExplorer:
             domain = rel['domain']['value']
             range_val = rel.get('range', {}).get('value')
 
-            if prop in existing_nodes and domain in existing_nodes:
-                net.add_edge(
-                    domain,
-                    prop,
-                    label="has property",
-                    title=f"domain: {self._get_local_name(domain)} → {self._get_local_name(prop)}",
-                    color=self.RELATIONSHIP_COLORS['domain'],
-                    width=1.5,
-                    dashes=True
-                )
+            if prop in nodes_to_add and domain in nodes_to_add:
+                edges_to_add.append({
+                    'from': domain,
+                    'to': prop,
+                    'label': "has property",
+                    'title': f"domain: {self._get_local_name(domain)} → {self._get_local_name(prop)}",
+                    'color': self.RELATIONSHIP_COLORS['domain'],
+                    'width': 1.5,
+                    'dashes': True
+                })
                 edge_stats['domain'] += 1
+                connected_nodes.add(prop)
+                connected_nodes.add(domain)
 
-            if range_val and prop in existing_nodes and range_val in existing_nodes:
-                net.add_edge(
-                    prop,
-                    range_val,
-                    label="range",
-                    title=f"range: {self._get_local_name(prop)} → {self._get_local_name(range_val)}",
-                    color=self.RELATIONSHIP_COLORS['range'],
-                    width=1.5,
-                    dashes=True
-                )
+            if range_val and prop in nodes_to_add and range_val in nodes_to_add:
+                edges_to_add.append({
+                    'from': prop,
+                    'to': range_val,
+                    'label': "range",
+                    'title': f"range: {self._get_local_name(prop)} → {self._get_local_name(range_val)}",
+                    'color': self.RELATIONSHIP_COLORS['range'],
+                    'width': 1.5,
+                    'dashes': True
+                })
                 edge_stats['range'] += 1
+                connected_nodes.add(prop)
+                connected_nodes.add(range_val)
+
+        # Add all nodes (including isolated GIST nodes to show bridging opportunities)
+        logger.info("📍 Adding nodes to graph...")
+        for uri, node_data in nodes_to_add.items():
+            namespace = node_data['namespace']
+
+            net.add_node(
+                uri,
+                label=node_data['label'],
+                title=node_data['title'],
+                color=node_data['color'],
+                size=node_data['size'],
+                shape=node_data['shape']
+            )
+            node_stats[namespace] += 1
+
+        # Add all edges
+        logger.info("🔗 Adding edges to graph...")
+        for edge in edges_to_add:
+            net.add_edge(
+                edge['from'],
+                edge['to'],
+                label=edge['label'],
+                title=edge['title'],
+                color=edge['color'],
+                width=edge['width'],
+                dashes=edge.get('dashes', False),
+                arrows={'to': {'enabled': True, 'scaleFactor': 0.5}}
+            )
 
         # Log statistics
         logger.info("📈 Graph Statistics:")
@@ -397,9 +449,9 @@ class PyvisOntologyExplorer:
         net.save_graph(str(output_path))
 
         # Inject legend into HTML
-        html_content = output_path.read_text()
+        html_content = output_path.read_text(encoding='utf-8')
         html_content = html_content.replace('</body>', f'{legend_html}</body>')
-        output_path.write_text(html_content)
+        output_path.write_text(html_content, encoding='utf-8')
 
         logger.info(f"✅ Visualization saved to: {output_path.absolute()}")
         logger.info(f"🌐 Open in browser: file://{output_path.absolute()}")
@@ -407,18 +459,44 @@ class PyvisOntologyExplorer:
         return str(output_path.absolute())
 
     def _create_legend_html(self, node_stats: dict, edge_stats: dict) -> str:
-        """Create HTML legend for the visualization"""
+        """Create HTML legend for the visualization with interactive filtering"""
+        import html
         return f"""
         <div style="position: fixed; top: 10px; right: 10px; background: white; padding: 15px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-family: Arial; max-width: 300px; z-index: 1000;">
             <h3 style="margin-top: 0; color: #2c3e50;">Ontology Explorer</h3>
 
-            <h4 style="margin-bottom: 5px; color: #34495e;">Node Colors:</h4>
+            <h4 style="margin-bottom: 5px; color: #34495e;">Filter Ontologies (click to toggle):</h4>
             <div style="font-size: 12px;">
-                <div><span style="display:inline-block; width:15px; height:15px; background:#3498db; border-radius:50%; margin-right:5px;"></span> GIST ({node_stats.get('gist', 0)})</div>
-                <div><span style="display:inline-block; width:15px; height:15px; background:#e74c3c; border-radius:50%; margin-right:5px;"></span> DBC ({node_stats.get('dbc', 0)})</div>
-                <div><span style="display:inline-block; width:15px; height:15px; background:#2ecc71; border-radius:50%; margin-right:5px;"></span> SOW ({node_stats.get('sow', 0)})</div>
-                <div><span style="display:inline-block; width:15px; height:15px; background:#f39c12; border-radius:50%; margin-right:5px;"></span> Bridge ({node_stats.get('bridge', 0)})</div>
-                <div><span style="display:inline-block; width:15px; height:15px; background:#9b59b6; border-radius:50%; margin-right:5px;"></span> OWL/RDFS ({node_stats.get('owl', 0) + node_stats.get('rdf', 0)})</div>
+                <div id="filter-gist" onclick="toggleOntology('gist')" style="cursor: pointer; padding: 3px; border-radius: 3px; margin: 2px 0; transition: background 0.2s;" onmouseover="this.style.background='#ecf0f1'" onmouseout="this.style.background='white'">
+                    <span style="display:inline-block; width:15px; height:15px; background:#3498db; border-radius:50%; margin-right:5px;"></span>
+                    <span id="gist-label">GIST ({node_stats.get('gist', 0)})</span>
+                    <span id="gist-status" style="float: right; color: #27ae60; font-weight: bold;">✓</span>
+                </div>
+                <div id="filter-dbc" onclick="toggleOntology('dbc')" style="cursor: pointer; padding: 3px; border-radius: 3px; margin: 2px 0; transition: background 0.2s;" onmouseover="this.style.background='#ecf0f1'" onmouseout="this.style.background='white'">
+                    <span style="display:inline-block; width:15px; height:15px; background:#e74c3c; border-radius:50%; margin-right:5px;"></span>
+                    <span id="dbc-label">DBC ({node_stats.get('dbc', 0)})</span>
+                    <span id="dbc-status" style="float: right; color: #27ae60; font-weight: bold;">✓</span>
+                </div>
+                <div id="filter-sow" onclick="toggleOntology('sow')" style="cursor: pointer; padding: 3px; border-radius: 3px; margin: 2px 0; transition: background 0.2s;" onmouseover="this.style.background='#ecf0f1'" onmouseout="this.style.background='white'">
+                    <span style="display:inline-block; width:15px; height:15px; background:#2ecc71; border-radius:50%; margin-right:5px;"></span>
+                    <span id="sow-label">SOW ({node_stats.get('sow', 0)})</span>
+                    <span id="sow-status" style="float: right; color: #27ae60; font-weight: bold;">✓</span>
+                </div>
+                <div id="filter-bridge" onclick="toggleOntology('bridge')" style="cursor: pointer; padding: 3px; border-radius: 3px; margin: 2px 0; transition: background 0.2s;" onmouseover="this.style.background='#ecf0f1'" onmouseout="this.style.background='white'">
+                    <span style="display:inline-block; width:15px; height:15px; background:#f39c12; border-radius:50%; margin-right:5px;"></span>
+                    <span id="bridge-label">Bridge ({node_stats.get('bridge', 0)})</span>
+                    <span id="bridge-status" style="float: right; color: #27ae60; font-weight: bold;">✓</span>
+                </div>
+                <div id="filter-owl" onclick="toggleOntology('owl')" style="cursor: pointer; padding: 3px; border-radius: 3px; margin: 2px 0; transition: background 0.2s;" onmouseover="this.style.background='#ecf0f1'" onmouseout="this.style.background='white'">
+                    <span style="display:inline-block; width:15px; height:15px; background:#9b59b6; border-radius:50%; margin-right:5px;"></span>
+                    <span id="owl-label">OWL/RDFS ({node_stats.get('owl', 0) + node_stats.get('rdf', 0)})</span>
+                    <span id="owl-status" style="float: right; color: #27ae60; font-weight: bold;">✓</span>
+                </div>
+                <div id="filter-unknown" onclick="toggleOntology('unknown')" style="cursor: pointer; padding: 3px; border-radius: 3px; margin: 2px 0; transition: background 0.2s;" onmouseover="this.style.background='#ecf0f1'" onmouseout="this.style.background='white'">
+                    <span style="display:inline-block; width:15px; height:15px; background:#34495e; border-radius:50%; margin-right:5px;"></span>
+                    <span id="unknown-label">Unknown ({node_stats.get('unknown', 0)})</span>
+                    <span id="unknown-status" style="float: right; color: #27ae60; font-weight: bold;">✓</span>
+                </div>
             </div>
 
             <h4 style="margin: 10px 0 5px 0; color: #34495e;">Relationships:</h4>
@@ -429,11 +507,86 @@ class PyvisOntologyExplorer:
             </div>
 
             <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #ecf0f1; font-size: 11px; color: #7f8c8d;">
-                💡 Hover over nodes for details<br>
-                🖱️ Click & drag to explore<br>
-                🔍 Scroll to zoom
+                {html.escape('💡')} Hover over nodes for details<br>
+                {html.escape('🖱️')} Click & drag to explore<br>
+                {html.escape('🔍')} Scroll to zoom<br>
+                {html.escape('👆')} Click colors to filter
             </div>
         </div>
+
+        <script type="text/javascript">
+            // Store original node data
+            var originalNodes = nodes.get();
+            var originalEdges = edges.get();
+
+            // Track which ontologies are visible
+            var visibleOntologies = {{
+                'gist': true,
+                'dbc': true,
+                'sow': true,
+                'bridge': true,
+                'owl': true,
+                'rdf': true,
+                'unknown': true
+            }};
+
+            // Color mapping for ontologies
+            var ontologyColors = {{
+                '#3498db': 'gist',
+                '#e74c3c': 'dbc',
+                '#2ecc71': 'sow',
+                '#f39c12': 'bridge',
+                '#9b59b6': 'owl',
+                '#95a5a6': 'rdf',
+                '#34495e': 'unknown'
+            }};
+
+            function toggleOntology(ontology) {{
+                // Toggle visibility
+                visibleOntologies[ontology] = !visibleOntologies[ontology];
+
+                // Update status indicator
+                var statusElement = document.getElementById(ontology + '-status');
+                var filterElement = document.getElementById('filter-' + ontology);
+                if (visibleOntologies[ontology]) {{
+                    statusElement.innerHTML = '✓';
+                    statusElement.style.color = '#27ae60';
+                    filterElement.style.opacity = '1';
+                }} else {{
+                    statusElement.innerHTML = '✗';
+                    statusElement.style.color = '#e74c3c';
+                    filterElement.style.opacity = '0.5';
+                }}
+
+                // Filter nodes and edges
+                filterGraph();
+            }}
+
+            function filterGraph() {{
+                // Filter nodes based on color
+                var filteredNodes = originalNodes.filter(function(node) {{
+                    var nodeOntology = ontologyColors[node.color];
+                    return visibleOntologies[nodeOntology] === true;
+                }});
+
+                // Get IDs of visible nodes
+                var visibleNodeIds = new Set(filteredNodes.map(n => n.id));
+
+                // Filter edges - only show if both endpoints are visible
+                var filteredEdges = originalEdges.filter(function(edge) {{
+                    return visibleNodeIds.has(edge.from) && visibleNodeIds.has(edge.to);
+                }});
+
+                // Update the network
+                nodes.clear();
+                edges.clear();
+                nodes.add(filteredNodes);
+                edges.add(filteredEdges);
+
+                // Re-fit the network
+                network.fit();
+            }}
+        </script>
         """
 
     def generate_analysis_report(self, output_file: str = "ontology_analysis.html"):
@@ -452,7 +605,7 @@ class PyvisOntologyExplorer:
         html = self._create_report_html(stats, bridges, orphans)
 
         output_path = Path(output_file)
-        output_path.write_text(html)
+        output_path.write_text(html, encoding='utf-8')
         logger.info(f"✅ Analysis report saved to: {output_path.absolute()}")
 
         return str(output_path.absolute())
@@ -570,6 +723,7 @@ class PyvisOntologyExplorer:
         return f"""<!DOCTYPE html>
 <html>
 <head>
+    <meta charset="utf-8">
     <title>Ontology Analysis Report</title>
     <style>
         body {{ font-family: 'Segoe UI', Arial, sans-serif; margin: 0; padding: 20px; background: #f5f7fa; }}
