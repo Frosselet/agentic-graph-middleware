@@ -1,56 +1,82 @@
+## ============================================================
+## Production Fuseki Configuration - Graph Middleware
+## Single TDB2 Dataset: "ontologies"
+## ============================================================
+
 @prefix fuseki:  <http://jena.apache.org/fuseki#> .
 @prefix rdf:     <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs:    <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix tdb2:    <http://jena.apache.org/2016/tdb#> .
 @prefix ja:      <http://jena.hpl.hp.com/2005/11/Assembler#> .
+@prefix :        <#> .
 
-## Fuseki Server Configuration for Agentic Data Scraper Semantic Model
-
+## Server configuration
 [] rdf:type fuseki:Server ;
-   fuseki:services (
-     <#gist-dbc-sow>
-     <#ontologies-only>
-     <#test-data>
-   ) .
+   fuseki:services ( :service ) .
 
-## Main dataset: Complete Gist-DBC-SOW-Contract connected graph
-<#gist-dbc-sow> rdf:type fuseki:Service ;
-    fuseki:name "gist-dbc-sow" ;
-    fuseki:serviceQuery "sparql" ;
-    fuseki:serviceUpdate "update" ;
-    fuseki:serviceUpload "upload" ;
-    fuseki:serviceReadWriteGraphStore "data" ;
-    fuseki:serviceReadGraphStore "get" ;
-    fuseki:dataset <#gist-dbc-sow-dataset> .
+## ============================================================
+## Service: ontologies
+## Purpose: Primary semantic ontology storage for DBC, GIST, SOW
+## ============================================================
 
-<#gist-dbc-sow-dataset> rdf:type tdb2:DatasetTDB2 ;
-    tdb2:location "/fuseki/databases/gist-dbc-sow" ;
-    tdb2:unionDefaultGraph true .
-
-## Ontologies-only dataset: For ontology development and validation
-<#ontologies-only> rdf:type fuseki:Service ;
+:service rdf:type fuseki:Service ;
     fuseki:name "ontologies" ;
-    fuseki:serviceQuery "sparql" ;
-    fuseki:serviceUpdate "update" ;
-    fuseki:serviceUpload "upload" ;
-    fuseki:serviceReadWriteGraphStore "data" ;
-    fuseki:serviceReadGraphStore "get" ;
-    fuseki:dataset <#ontologies-dataset> .
+    fuseki:dataset :dataset ;
 
-<#ontologies-dataset> rdf:type tdb2:DatasetTDB2 ;
-    tdb2:location "/fuseki/databases/ontologies" ;
-    tdb2:unionDefaultGraph true .
+    # SPARQL Query endpoints
+    fuseki:endpoint [
+        fuseki:operation fuseki:query ;
+        fuseki:name "query"
+    ] ;
+    fuseki:endpoint [
+        fuseki:operation fuseki:query ;
+        fuseki:name "sparql"  # Standard SPARQL endpoint
+    ] ;
 
-## Test data dataset: For testing queries and development
-<#test-data> rdf:type fuseki:Service ;
-    fuseki:name "test-data" ;
-    fuseki:serviceQuery "sparql" ;
-    fuseki:serviceUpdate "update" ;
-    fuseki:serviceUpload "upload" ;
-    fuseki:serviceReadWriteGraphStore "data" ;
-    fuseki:serviceReadGraphStore "get" ;
-    fuseki:dataset <#test-dataset> .
+    # SPARQL Update endpoint
+    fuseki:endpoint [
+        fuseki:operation fuseki:update ;
+        fuseki:name "update"
+    ] ;
 
-<#test-dataset> rdf:type tdb2:DatasetTDB2 ;
-    tdb2:location "/fuseki/databases/test-data" ;
-    tdb2:unionDefaultGraph true .
+    # Graph Store Protocol - Read/Write
+    fuseki:endpoint [
+        fuseki:operation fuseki:gsp-rw ;
+        fuseki:name "data"
+    ] ;
+
+    # Graph Store Protocol - Read Only
+    fuseki:endpoint [
+        fuseki:operation fuseki:gsp-r ;
+        fuseki:name "get"
+    ] ;
+
+    # File Upload endpoint
+    fuseki:endpoint [
+        fuseki:operation fuseki:upload ;
+        fuseki:name "upload"
+    ] .
+
+## ============================================================
+## Dataset: TDB2 with persistent storage
+## Location: /fuseki/databases/ontologies
+## ============================================================
+
+:dataset rdf:type tdb2:DatasetTDB2 ;
+    tdb2:location "/fuseki/databases/ontologies" .
+
+## ============================================================
+## Configuration Notes:
+##
+## - TDB2 provides ACID transactions and crash recovery
+## - Data persists across container restarts
+## - Uses default graph for all ontology data
+## - All SPARQL 1.1 Query, Update, and GSP operations supported
+## - Upload endpoint accepts RDF files (Turtle, RDF/XML, JSON-LD, N-Triples)
+##
+## Endpoints:
+##   Query:  http://localhost:3030/ontologies/sparql
+##   Update: http://localhost:3030/ontologies/update
+##   GSP:    http://localhost:3030/ontologies/data
+##   Upload: http://localhost:3030/ontologies/upload
+## ============================================================

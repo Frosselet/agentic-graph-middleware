@@ -35,6 +35,7 @@ class PyvisOntologyExplorer:
         'range': '#f39c12',          # Orange
         'sameAs': '#1abc9c',         # Teal
         'equivalentClass': '#16a085',# Dark teal
+        'seeAlso': '#e67e22',        # Carrot orange - Related concepts
         'default': '#bdc3c7'         # Light gray
     }
 
@@ -310,6 +311,9 @@ class PyvisOntologyExplorer:
           }} UNION {{
             ?subject owl:sameAs ?object .
             BIND(owl:sameAs as ?predicate)
+          }} UNION {{
+            ?subject rdfs:seeAlso ?object .
+            BIND(rdfs:seeAlso as ?predicate)
           }}
           FILTER(isURI(?object))
         }}

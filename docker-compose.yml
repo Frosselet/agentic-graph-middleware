@@ -1,49 +1,64 @@
+version: '3.8'
+
 services:
   fuseki:
     image: stain/jena-fuseki:latest
-    container_name: agentic-fuseki
+    container_name: graph-fuseki
     ports:
       - "3030:3030"
-    command: ["--config=/fuseki-config/assembler.ttl"]
+    command: ["/jena-fuseki/fuseki-server", "--config=/fuseki-config/config.ttl"]
     environment:
-      - JVM_ARGS=-Xmx4g -Dlog4j2.formatMsgNoLookups=true
-      - ADMIN_PASSWORD=admin
+      - ADMIN_PASSWORD=admin123
+      - JVM_ARGS=-Xmx4g -Xms2g
     volumes:
       - fuseki-data:/fuseki
       - ./fuseki/config:/fuseki-config:ro
-      - ../ontologies/ontologies:/ontologies:ro
     networks:
-      - semantic-net
+      - graph-network
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:3030/$/ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
 
   kuzu-api:
     build:
       context: .
       dockerfile: kuzu.Dockerfile
-    container_name: agentic-kuzu
+    container_name: graph-kuzu
     ports:
       - "8080:8080"
     volumes:
       - kuzu-data:/data
       - ../ontologies/ontologies:/ontologies:ro
     networks:
-      - semantic-net
+      - graph-network
     restart: unless-stopped
     environment:
       - KUZU_DB_PATH=/data/ontology.kuzu
-
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
 networks:
-  semantic-net:
+  graph-network:
     driver: bridge
+    name: graph-semantic-network
 
 volumes:
   fuseki-data:
+    name: graph-fuseki-data
     driver: local
   kuzu-data:
+    name: graph-kuzu-data
     driver: local

@@ -1,0 +1,29 @@
+# Protégé SPARQL Endpoint Connection to Fuseki
+
+## Method 1: SPARQL Query Tab (View Only)
+1. In Protégé: Window → Tabs → SPARQL Query
+2. Click "Configure endpoint"
+3. Enter SPARQL endpoint: http://localhost:3030/ontologies/sparql
+4. If authentication required:
+   - Add HTTP headers or use authenticated URL
+   - URL format: http://admin:admin123@localhost:3030/ontologies/sparql
+
+## Method 2: SPARQLing OWL Plugin (Full Read/Write)
+1. Install plugin: File → Preferences → Plugins
+2. Search for "SPARQLing OWL" or "SPARQL Ontology"
+3. After installation, restart Protégé
+4. File → Open from SPARQL endpoint
+5. Configure:
+   - SPARQL Query endpoint: http://localhost:3030/ontologies/sparql
+   - SPARQL Update endpoint: http://localhost:3030/ontologies/update
+   - Graph Store Protocol: http://localhost:3030/ontologies/data
+   - Username: admin
+   - Password: admin123
+
+## Method 3: Live Synchronization
+Some Protégé versions support live triplestore connections via:
+- File → Preferences → SPARQL Endpoint Settings
+- Configure auto-sync with Fuseki
+
+Note: Authentication may require adding credentials to endpoint URL or 
+using Protégé's authentication dialog.
