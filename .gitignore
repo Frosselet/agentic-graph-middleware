@@ -49,3 +49,8 @@ pyproject.toml
 # OS
 .DS_Store
 Thumbs.db
+
+# Fuseki exports
+fuseki_export.rdf
+fuseki_ontology.owl
+catalog-v001.xml
